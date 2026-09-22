@@ -1,0 +1,10 @@
+.git
+.gradle
+.idea
+.codex
+.agents
+build
+api-docs
+.env
+.env.*
+README.md

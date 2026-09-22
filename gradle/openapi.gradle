@@ -1,0 +1,67 @@
+def openApiSpec = layout.buildDirectory.file('openapi/openapi.json')
+
+tasks.register('exportOpenApi', Test) {
+	description = 'Export the application OpenAPI specification without an Arcus server.'
+	group = 'OpenAPI Tools'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'api-docs'
+	}
+	systemProperty 'openapi.output', openApiSpec.get().asFile.absolutePath
+	outputs.file(openApiSpec)
+	shouldRunAfter tasks.named('test')
+}
+
+openApiGenerate {
+	generatorName.set('html2')
+	removeOperationIdPrefix.set(true)
+	inputSpec.set(openApiSpec)
+	outputDir.set(layout.projectDirectory.dir('api-docs'))
+}
+
+openApiValidate {
+	inputSpec.set(openApiSpec)
+}
+
+tasks.named('openApiGenerate') {
+	dependsOn tasks.named('exportOpenApi')
+	doLast {
+		// html2 7.25.0's object template is missing two interpolation slots.
+		// Restore them so anyOf and the closing brace render instead of throwing in the browser.
+		def html = layout.projectDirectory.file('api-docs/index.html').asFile
+		def content = html.getText('UTF-8')
+		def original = '(_templateObject24, this.schema.title'
+		if (content.count(original) != 1) {
+			throw new GradleException('Recheck the html2 object-schema workaround after upgrading OpenAPI Generator.')
+		}
+		def corrected = "(_templateObject24.slice(0, -1).concat(['', ''], _templateObject24.slice(-1)), this.schema.title"
+		content = content.replace(original, corrected)
+
+		// html2 sorts groups alphabetically. Follow the OpenAPI tag order in both views.
+		def spec = new groovy.json.JsonSlurper().parse(openApiSpec.get().asFile, 'UTF-8')
+		def tags = spec.tags.collectEntries { [(it.name.replace('+', '')): it.name] }
+		def reorderGroups = { String source, pattern ->
+			def blocks = (source =~ pattern).findAll()
+			def groups = blocks.groupBy { it[1] }
+			if (groups.keySet() != tags.keySet()) {
+				throw new GradleException('The generated HTML groups do not match the OpenAPI tags.')
+			}
+			def ordered = tags.keySet().collectMany { groups[it] }.collect { it[0] }.join('\n')
+			def start = source.indexOf(blocks.first()[0])
+			def end = source.indexOf(blocks.last()[0]) + blocks.last()[0].length()
+			source.substring(0, start) + ordered + source.substring(end)
+		}
+		content = reorderGroups(content, /(?s)<section id="api-([^"]+)">.*?<\/section>/)
+		content = reorderGroups(content, /(?s)<li[^>]* data-group="([^"_]+)"[^>]*>.*?<\/li>/)
+		tags.each { group, label ->
+			content = content.replace("<h1>${group}</h1>", "<h1>${label}</h1>")
+			content = content.replace("API Methods - ${group}</a>", "API Methods - ${label}</a>")
+		}
+		html.setText(content, 'UTF-8')
+	}
+}
+
+tasks.named('openApiValidate') {
+	dependsOn tasks.named('exportOpenApi')
+}

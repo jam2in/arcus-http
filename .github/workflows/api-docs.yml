@@ -1,0 +1,59 @@
+name: API docs
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-docs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Generate API docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Test and generate HTML documentation
+        run: ./gradlew --no-daemon check openApiGenerate
+
+      - name: Upload API docs
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: api-docs
+
+  deploy:
+    name: Deploy API docs
+    if: github.ref == 'refs/heads/develop'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

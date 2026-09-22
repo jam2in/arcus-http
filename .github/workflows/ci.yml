@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Gradle check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run tests
+        run: ./gradlew --no-daemon check
+
+  integration:
+    name: Arcus integration
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Check out Arcus
+        id: arcus
+        run: git clone --depth 1 https://github.com/naver/arcus.git "$RUNNER_TEMP/arcus"
+
+      - name: Start Arcus
+        working-directory: ${{ runner.temp }}/arcus
+        run: docker compose up --wait --wait-timeout 300
+
+      - name: Run JUnit integration tests
+        env:
+          ARCUS_ZOOKEEPER_ADDRESS: 127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183
+          ARCUS_SERVICE_CODE: test
+          ARCUS_POOL_SIZE: '2'
+          ARCUS_OPERATION_TIMEOUT_MS: '1000'
+        run: ./gradlew --no-daemon integrationTest
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: |
+            build/reports/tests/integrationTest
+            build/test-results/integrationTest
+          if-no-files-found: ignore
+
+      - name: Show Arcus logs
+        if: failure() && steps.arcus.outcome == 'success'
+        working-directory: ${{ runner.temp }}/arcus
+        run: docker compose logs --no-color --tail=200
+
+      - name: Stop Arcus
+        if: always() && steps.arcus.outcome == 'success'
+        working-directory: ${{ runner.temp }}/arcus
+        run: docker compose down -v

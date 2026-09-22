@@ -1,0 +1,20 @@
+services:
+  arcus-http:
+    container_name: arcus-http
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    environment:
+      ARCUS_HTTP_PORT: ${ARCUS_HTTP_PORT}
+      ARCUS_ZOOKEEPER_ADDRESS: ${ARCUS_ZOOKEEPER_ADDRESS}
+      ARCUS_SERVICE_CODE: ${ARCUS_SERVICE_CODE}
+      ARCUS_POOL_SIZE: ${ARCUS_POOL_SIZE}
+      ARCUS_OPERATION_TIMEOUT_MS: ${ARCUS_OPERATION_TIMEOUT_MS}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "3", "http://localhost:${ARCUS_HTTP_PORT}/actuator/health/readiness"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+      start_period: 30s
+    network_mode: "host"
