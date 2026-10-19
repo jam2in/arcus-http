@@ -1,0 +1,12 @@
+# 2026-10-19 [version 0.1.0]
+## New Features
+  - Add KV APIs (set/add/replace, append/prepend, gets, incr/decr, touch/get-and-touch, delete, bulk)
+  - Add List APIs (create, insert, get, delete, get-and-delete, bulk, piped insert)
+  - Add Set APIs (create, insert, exist, get, delete, get-and-delete, bulk, piped insert/exist)
+  - Add Map APIs (create, insert, upsert, update, get, delete, get-and-delete, bulk, piped insert/update)
+  - Add B+Tree APIs (create, insert/upsert with trimmed result, update, incr/decr, get, delete, get-and-delete, count, find position, get by position, smget, bulk, piped insert/update)
+  - Add item attribute get/set APIs
+  - Add cache flush API (all or by prefix, with delay)
+  - Add Arcus health indicator and liveness/readiness probes
+  - Add OpenAPI docs and Swagger UI
+  - Add Docker Compose quick start

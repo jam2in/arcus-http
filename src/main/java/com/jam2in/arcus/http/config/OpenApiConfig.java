@@ -16,7 +16,7 @@ public class OpenApiConfig {
       openApi.setInfo(new Info()
           .title("Arcus HTTP API")
           .description("Arcus의 캐시 기능을 HTTP API로 제공합니다.")
-          .version("v0"));
+          .version("0.1.0"));
       openApi.setTags(Stream.of("KV", "List", "Set", "Map", "B+Tree", "Item", "Cache")
           .map(name -> openApi.getTags().stream()
               .filter(tag -> name.equals(tag.getName()))
