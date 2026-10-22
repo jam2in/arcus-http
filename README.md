@@ -1,7 +1,7 @@
 <h1 align="center">Arcus HTTP</h1>
 
 <p align="center">
-  Arcus 캐시를 HTTP API로 사용하세요.
+  Arcus 캐시를 HTTP API로 사용해 보세요.
 </p>
 
 <p align="center">
